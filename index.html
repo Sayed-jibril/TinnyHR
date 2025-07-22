@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TinnyHR Professional Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.20.15/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.1/js/all.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        margin: 0;
+        font-family: "Poppins", sans-serif;
+      }
+      .dark-theme {
+        background: linear-gradient(135deg, #0a1d37 0%, #1e3a8a 100%);
+        color: #ffffff;
+      }
+      .light-theme {
+        background: linear-gradient(135deg, #ffffff 0%, #e6f0fa 100%);
+        color: #1f2937;
+      }
+      .glass-card {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+      .glass-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+      }
+      .sidebar {
+        transition: width 0.3s ease;
+      }
+      .chart-container {
+        position: relative;
+        width: 100%;
+        height: 320px;
+      }
+      .table-container {
+        max-height: 400px;
+        overflow-y: auto;
+      }
+      .animate-pulse {
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="text/babel">
+      const { useState, useEffect, useRef } = React;
+
+      const employeeData = {
+        labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"],
+        datasets: [
+          {
+            label: "Employee Engagement",
+            data: [65, 70, 68, 72, 75, 78, 80],
+            borderColor: "#2AC3DE",
+            backgroundColor: "rgba(42, 195, 222, 0.2)",
+            fill: true,
+            tension: 0.4,
+          },
+          {
+            label: "Turnover Rate",
+            data: [5, 4, 6, 3, 5, 4, 3],
+            borderColor: "#F4C430",
+            backgroundColor: "rgba(244, 196, 48, 0.2)",
+            fill: true,
+            tension: 0.4,
+          },
+        ],
+      };
+
+      const tableData = [
+        {
+          id: 1,
+          name: "John Doe",
+          role: "Developer",
+          lastCheckIn: "2025-07-21 09:00",
+          status: "Active",
+        },
+        {
+          id: 2,
+          name: "Jane Smith",
+          role: "Designer",
+          lastCheckIn: "2025-07-21 08:30",
+          status: "Active",
+        },
+        {
+          id: 3,
+          name: "Bob Johnson",
+          role: "Manager",
+          lastCheckIn: "2025-07-20 17:00",
+          status: "Inactive",
+        },
+        {
+          id: 4,
+          name: "Alice Brown",
+          role: "HR",
+          lastCheckIn: "2025-07-21 10:15",
+          status: "Active",
+        },
+      ];
+
+      const activityFeed = [
+        {
+          id: 1,
+          action: "John Doe checked in via Face ID",
+          time: "2025-07-21 09:00",
+        },
+        {
+          id: 2,
+          action: "AI Insight: High turnover risk detected",
+          time: "2025-07-21 08:45",
+        },
+        {
+          id: 3,
+          action: "Jane Smith submitted PTO request",
+          time: "2025-07-21 08:30",
+        },
+      ];
+
+      const aiInsights = [
+        {
+          id: 1,
+          insight: "High engagement in Development team (82%)",
+          priority: "Positive",
+        },
+        {
+          id: 2,
+          insight: "Potential turnover risk in Sales team",
+          priority: "Warning",
+        },
+        {
+          id: 3,
+          insight: "Recommend team-building activity",
+          priority: "Suggestion",
+        },
+      ];
+
+      function KPICard({ title, value, change, icon }) {
+        return (
+          <div className="glass-card p-6">
+            <div className="flex items-center">
+              <i
+                className={`${icon} text-3xl text-cyan-400 dark:text-cyan-300 mr-4`}
+                aria-hidden="true"
+              ></i>
+              <div>
+                <h3 className="text-base font-semibold text-gray-700 dark:text-gray-200">
+                  {title}
+                </h3>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {value}
+                </p>
+                <p
+                  className={`text-sm ${
+                    change >= 0 ? "text-green-400" : "text-red-400"
+                  }`}
+                >
+                  {change >= 0 ? "+" : ""}
+                  {change}% from last month
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      function FaceDetectionWidget() {
+        const [faceStatus, setFaceStatus] = useState("Idle");
+        const handleUpload = () => {
+          setFaceStatus("Processing...");
+          setTimeout(() => setFaceStatus("Face Verified"), 2000); // Simulate API call
+        };
+
+        return (
+          <div className="glass-card p-6">
+            <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">
+              AI Face Detection Check-In
+            </h2>
+            <div className="flex flex-col items-center">
+              <div className="w-40 h-40 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center mb-4 relative overflow-hidden">
+                <i
+                  className="fas fa-camera text-4xl text-gray-500"
+                  aria-hidden="true"
+                ></i>
+                {faceStatus === "Processing..." && (
+                  <div className="absolute inset-0 bg-cyan-500/20 animate-pulse"></div>
+                )}
+              </div>
+              <button
+                onClick={handleUpload}
+                className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white py-2 px-6 rounded-full hover:from-cyan-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                aria-label="Upload face for verification"
+              >
+                Scan Face
+              </button>
+              <p
+                className={`mt-4 text-sm ${
+                  faceStatus === "Face Verified"
+                    ? "text-green-400"
+                    : "text-gray-700 dark:text-gray-200"
+                }`}
+              >
+                {faceStatus}
+              </p>
+            </div>
+          </div>
+        );
+      }
+
+      function AIInsightsWidget() {
+        return (
+          <div className="glass-card p-6">
+            <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">
+              AI Workforce Insights
+            </h2>
+            <ul className="space-y-4">
+              {aiInsights.map((item) => (
+                <li key={item.id} className="flex items-start">
+                  <i
+                    className={`fas fa-${
+                      item.priority === "Positive"
+                        ? "check-circle"
+                        : item.priority === "Warning"
+                        ? "exclamation-circle"
+                        : "lightbulb"
+                    } text-sm ${
+                      item.priority === "Positive"
+                        ? "text-green-400"
+                        : item.priority === "Warning"
+                        ? "text-yellow-400"
+                        : "text-cyan-400"
+                    } mt-1 mr-3`}
+                    aria-hidden="true"
+                  ></i>
+                  <div>
+                    <p className="text-gray-900 dark:text-white text-sm">
+                      {item.insight}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {item.priority}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      }
+
+      function EmployeeChart({ theme }) {
+        const chartRef = useRef(null);
+
+        useEffect(() => {
+          const ctx = document.getElementById("employeeChart").getContext("2d");
+          chartRef.current = new Chart(ctx, {
+            type: "line",
+            data: employeeData,
+            options: {
+              responsive: true,
+              plugins: {
+                legend: {
+                  position: "top",
+                  labels: {
+                    color: theme === "dark" ? "#FFFFFF" : "#1F2937",
+                    font: { family: "Poppins", size: 14 },
+                  },
+                },
+                title: {
+                  display: true,
+                  text: "Workforce Trends (2025)",
+                  color: theme === "dark" ? "#FFFFFF" : "#1F2937",
+                  font: { family: "Poppins", size: 18 },
+                },
+                tooltip: {
+                  backgroundColor: theme === "dark" ? "#1E3A8A" : "#FFFFFF",
+                  titleColor: theme === "dark" ? "#FFFFFF" : "#1F2937",
+                  bodyColor: theme === "dark" ? "#FFFFFF" : "#1F2937",
+                },
+              },
+              scales: {
+                x: {
+                  grid: {
+                    color:
+                      theme === "dark"
+                        ? "rgba(255, 255, 255, 0.1)"
+                        : "rgba(0, 0, 0, 0.1)",
+                  },
+                  ticks: {
+                    color: theme === "dark" ? "#FFFFFF" : "#1F2937",
+                    font: { family: "Poppins" },
+                  },
+                },
+                y: {
+                  grid: {
+                    color:
+                      theme === "dark"
+                        ? "rgba(255, 255, 255, 0.1)"
+                        : "rgba(0, 0, 0, 0.1)",
+                  },
+                  ticks: {
+                    color: theme === "dark" ? "#FFFFFF" : "#1F2937",
+                    font: { family: "Poppins" },
+                    beginAtZero: true,
+                  },
+                },
+              },
+            },
+          });
+          return () => {
+            if (chartRef.current) {
+              chartRef.current.destroy();
+              chartRef.current = null;
+            }
+          };
+        }, [theme]);
+
+        return (
+          <canvas
+            id="employeeChart"
+            className="chart-container"
+            aria-label="Workforce Trends Chart"
+          ></canvas>
+        );
+      }
+
+      function EmployeeTable({ data }) {
+        const [sortConfig, setSortConfig] = useState({
+          key: "name",
+          direction: "asc",
+        });
+        const [sortedData, setSortedData] = useState(data);
+        const [filter, setFilter] = useState("");
+
+        useEffect(() => {
+          const filtered = filter
+            ? data.filter((row) =>
+                row.name.toLowerCase().includes(filter.toLowerCase())
+              )
+            : data;
+          const sorted = [...filtered].sort((a, b) => {
+            if (a[sortConfig.key] < b[sortConfig.key])
+              return sortConfig.direction === "asc" ? -1 : 1;
+            if (a[sortConfig.key] > b[sortConfig.key])
+              return sortConfig.direction === "asc" ? 1 : -1;
+            return 0;
+          });
+          setSortedData(sorted);
+        }, [sortConfig, filter, data]);
+
+        const requestSort = (key) => {
+          setSortConfig((prev) => ({
+            key,
+            direction:
+              prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+          }));
+        };
+
+        return (
+          <div className="glass-card p-6">
+            <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">
+              Employee Directory
+            </h2>
+            <input
+              type="text"
+              Placeholder="Filter by name..."
+              className="w-full mb-4 bg-transparent border-b border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:outline-none focus:border-cyan-400"
+              onChange={(e) => setFilter(e.target.value)}
+              aria-label="Filter employees by name"
+            />
+            <table className="min-w-full">
+              <thead>
+                <tr className="text-left text-gray-600 dark:text-gray-300">
+                  <th
+                    className="p-4 cursor-pointer"
+                    onClick={() => requestSort("name")}
+                    tabIndex="0"
+                    aria-label="Sort by Name"
+                  >
+                    Name{" "}
+                    {sortConfig.key === "name" &&
+                      (sortConfig.direction === "asc" ? "↑" : "↓")}
+                  </th>
+                  <th
+                    className="p-4 cursor-pointer"
+                    onClick={() => requestSort("role")}
+                    tabIndex="0"
+                    aria-label="Sort by Role"
+                  >
+                    Role{" "}
+                    {sortConfig.key === "role" &&
+                      (sortConfig.direction === "asc" ? "↑" : "↓")}
+                  </th>
+                  <th className="p-4">Last Check-In</th>
+                  <th className="p-4">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedData.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="border-t border-gray-200/20 dark:border-gray-700/20"
+                  >
+                    <td className="p-4 text-gray-900 dark:text-white">
+                      {row.name}
+                    </td>
+                    <td className="p-4 text-gray-900 dark:text-white">
+                      {row.role}
+                    </td>
+                    <td className="p-4 text-gray-600 dark:text-gray-300">
+                      {row.lastCheckIn}
+                    </td>
+                    <td className="p-4">
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs ${
+                          row.status === "Active"
+                            ? "bg-green-400/20 text-green-400"
+                            : "bg-red-400/20 text-red-400"
+                        }`}
+                      >
+                        {row.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      }
+
+      function ActivityFeed() {
+        return (
+          <div className="glass-card p-6">
+            <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">
+              HR Activity Feed
+            </h2>
+            <ul className="space-y-4">
+              {activityFeed.map((item) => (
+                <li key={item.id} className="flex items-start">
+                  <i
+                    className="fas fa-circle text-xs text-cyan-400 mt-1 mr-3"
+                    aria-hidden="true"
+                  ></i>
+                  <div>
+                    <p className="text-gray-900 dark:text-white text-sm">
+                      {item.action}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {item.time}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      }
+
+      function Dashboard() {
+        const [theme, setTheme] = useState("dark");
+        const [sidebarOpen, setSidebarOpen] = useState(true);
+
+        const toggleTheme = () => {
+          setTheme(theme === "dark" ? "light" : "dark");
+        };
+
+        return (
+          <div
+            className={`min-h-screen ${
+              theme === "dark" ? "dark-theme" : "light-theme"
+            }`}
+          >
+            <header className="bg-gray-900/90 dark:bg-gray-900/95 p-4 flex items-center justify-between shadow-lg">
+              <div className="flex items-center">
+                <button
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  className="mr-4 text-xl text-gray-200 hover:text-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                  aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
+                >
+                  <i className="fas fa-bars"></i>
+                </button>
+                <h1 className="text-xl font-semibold text-white">TinnyHR</h1>
+              </div>
+              <div className="flex items-center space-x-4">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search employees..."
+                    className="bg-gray-800/50 dark:bg-gray-700/50 text-white rounded-lg py-2 px-4 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                    aria-label="Search employees"
+                  />
+                  <i
+                    className="fas fa-search absolute right-3 top-2.5 text-gray-400"
+                    aria-hidden="true"
+                  ></i>
+                </div>
+                <button
+                  onClick={toggleTheme}
+                  className="text-xl text-gray-200 hover:text-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                  aria-label={
+                    theme === "dark"
+                      ? "Switch to light theme"
+                      : "Switch to dark theme"
+                  }
+                >
+                  <i
+                    className={theme === "dark" ? "fas fa-sun" : "fas fa-moon"}
+                  ></i>
+                </button>
+                <button
+                  className="text-xl text-gray-200 hover:text-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                  aria-label="Notifications"
+                >
+                  <i className="fas fa-bell"></i>
+                </button>
+                <div className="relative">
+                  <i
+                    className="fas fa-user-circle text-xl text-gray-200 hover:text-cyan-400"
+                    aria-label="User profile"
+                  ></i>
+                </div>
+              </div>
+            </header>
+            <div className="flex">
+              <aside
+                className={`sidebar ${
+                  sidebarOpen ? "w-64" : "w-16"
+                } bg-gray-900/90 dark:bg-gray-900/95 p-4 shadow-lg`}
+              >
+                <nav className="space-y-3">
+                  {[
+                    { icon: "fas fa-home", label: "Dashboard" },
+                    { icon: "fas fa-users", label: "Employees" },
+                    { icon: "fas fa-clock", label: "Attendance" },
+                    { icon: "fas fa-chart-bar", label: "Analytics" },
+                    { icon: "fas fa-cog", label: "Settings" },
+                  ].map((item, index) => (
+                    <a
+                      key={index}
+                      href="#"
+                      className="flex items-center space-x-2 text-gray-200 hover:text-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400 py-2 px-3 rounded-lg"
+                      aria-label={item.label}
+                    >
+                      <i className={`${item.icon} text-lg`}></i>
+                      {sidebarOpen && (
+                        <span className="text-sm font-medium">
+                          {item.label}
+                        </span>
+                      )}
+                    </a>
+                  ))}
+                </nav>
+              </aside>
+              <main className="flex-1 p-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                  <KPICard
+                    title="Total Employees"
+                    value="1,234"
+                    change={2.5}
+                    icon="fas fa-users"
+                  />
+                  <KPICard
+                    title="Attendance Rate"
+                    value="92%"
+                    change={1.8}
+                    icon="fas fa-check-circle"
+                  />
+                  <KPICard
+                    title="Avg. Engagement"
+                    value="78%"
+                    change={-0.5}
+                    icon="fas fa-smile"
+                  />
+                  <KPICard
+                    title="PTO Requests"
+                    value="45"
+                    change={10.0}
+                    icon="fas fa-calendar-alt"
+                  />
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-2 glass-card p-6">
+                    <EmployeeChart theme={theme} />
+                  </div>
+                  <FaceDetectionWidget />
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+                  <div className="lg:col-span-2">
+                    <EmployeeTable data={tableData} />
+                  </div>
+                  <AIInsightsWidget />
+                </div>
+                <div className="mt-6">
+                  <ActivityFeed />
+                </div>
+              </main>
+            </div>
+          </div>
+        );
+      }
+
+      ReactDOM.render(<Dashboard />, document.getElementById("root"));
+    </script>
+  </body>
+</html>
